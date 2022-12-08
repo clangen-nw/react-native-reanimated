@@ -27,13 +27,29 @@ std::shared_ptr<jsi::Function> WorkletsCache::getFunction(
         "(" +
         ValueWrapper::asString(frozenObj->map["asString"]->valueContainer) +
         ")");
-    auto func = rt.evaluateJavaScript(
-                      codeBuffer,
-                      ValueWrapper::asString(
-                          frozenObj->map["__location"]->valueContainer))
-                    .asObject(rt)
-                    .asFunction(rt);
-    worklets[workletHash] = std::make_shared<jsi::Function>(std::move(func));
+    try {
+        auto func = rt.evaluateJavaScript(
+                codeBuffer,
+                ValueWrapper::asString(
+                        frozenObj->map["__location"]->valueContainer))
+                .asObject(rt)
+                .asFunction(rt);
+        worklets[workletHash] = std::make_shared<jsi::Function>(std::move(func));
+    } catch (...) {
+        jsi::Function func = jsi::Function::createFromHostFunction(
+                rt,
+                jsi::PropNameID::forAscii(rt, "workletsCacheError"),
+                0,
+                [](
+                    jsi::Runtime &runtime,
+                    jsi::Value const &,
+                    jsi::Value const *arguments,
+                    size_t) noexcept -> jsi::Value
+                {
+                    return { false };
+                });
+        worklets[workletHash] = std::make_shared<jsi::Function>(std::move(func));
+    }
   }
   return worklets[workletHash];
 }
